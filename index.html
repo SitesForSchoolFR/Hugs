@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hugs</title>
+    <meta name="description" content="Hugs — proxy web estático (Scramjet v2 + Ultraviolet) para GitHub Pages." />
+    <meta name="theme-color" content="#0f0f0f" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+    <link rel="stylesheet" href="./style.css" />
+
+    <!-- Configuração central (carrega antes do app) -->
+    <script src="./config.js"></script>
+    <script src="./register-sw.js"></script>
+
+    <!-- Scramjet v2 (ordem importa: scramjet -> controller -> utils) -->
+    <script src="./scramjet/scramjet.js"></script>
+    <script src="./controller/controller.api.js"></script>
+    <script src="./utils/scramjet-utils.js"></script>
+
+    <!-- Ultraviolet fallback (bundle define Ultraviolet + codecs) -->
+    <script src="./uv/uv.bundle.js"></script>
+    <!-- BareMux (usado pelo fallback UV) -->
+    <script src="./baremux/index.js"></script>
+  </head>
+  <body>
+    <!-- Barra superior -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">🤗</span>
+        <span class="brand-name">Hugs</span>
+        <span id="engine-badge" class="badge" title="Motor ativo">scramjet</span>
+      </div>
+      <div class="top-actions">
+        <span id="status" class="status" role="status">Iniciando…</span>
+        <button id="btn-aboutblank" class="btn ghost" type="button" title="Abrir em about:blank (cloak)">
+          about:blank
+        </button>
+        <button id="btn-settings" class="btn ghost" type="button" aria-expanded="false" aria-controls="settings">
+          ⚙ Config
+        </button>
+      </div>
+    </header>
+
+    <!-- Omnibox -->
+    <nav class="omnibox" aria-label="Navegação">
+      <button id="btn-back" class="icon-btn" type="button" title="Voltar" aria-label="Voltar">←</button>
+      <button id="btn-forward" class="icon-btn" type="button" title="Avançar" aria-label="Avançar">→</button>
+      <button id="btn-reload" class="icon-btn" type="button" title="Recarregar" aria-label="Recarregar">↻</button>
+      <button id="btn-home" class="icon-btn" type="button" title="Início" aria-label="Início">⌂</button>
+      <form id="omnibox" class="omnibox-form" autocomplete="off">
+        <input
+          id="url-input"
+          class="url-input"
+          type="text"
+          inputmode="url"
+          spellcheck="false"
+          placeholder="Digite uma URL ou busca…"
+          aria-label="URL ou busca"
+        />
+        <button class="btn primary" type="submit">Ir</button>
+      </form>
+    </nav>
+
+    <!-- Erro / aviso -->
+    <div id="error-box" class="error-box" hidden>
+      <strong id="error-title">Algo falhou.</strong>
+      <span id="error-msg"></span>
+      <div class="error-actions">
+        <button id="btn-retry" class="btn" type="button">Tentar de novo</button>
+        <button id="btn-fallback-uv" class="btn" type="button">Usar Ultraviolet</button>
+        <button id="btn-fallback-sj" class="btn" type="button" hidden>Usar Scramjet</button>
+      </div>
+    </div>
+
+    <!-- Área principal -->
+    <main class="main">
+      <!-- Home (busca + atalhos) -->
+      <section id="home" class="home">
+        <h1 class="home-title">Para onde vamos?</h1>
+        <form id="home-search" class="home-search" autocomplete="off">
+          <input
+            id="home-input"
+            type="text"
+            inputmode="url"
+            spellcheck="false"
+            placeholder="Buscar ou colar uma URL…"
+            aria-label="Buscar ou colar uma URL"
+          />
+          <button class="btn primary big" type="submit">Buscar</button>
+        </form>
+
+        <div class="quick-grid" id="quick-links">
+          <button class="quick" type="button" data-url="https://www.youtube.com/">
+            <span class="quick-ico" aria-hidden="true">▶️</span><span>YouTube</span>
+          </button>
+          <button class="quick" type="button" data-url="https://discord.com/">
+            <span class="quick-ico" aria-hidden="true">💬</span><span>Discord</span>
+          </button>
+          <button class="quick" type="button" data-url="https://www.google.com/">
+            <span class="quick-ico" aria-hidden="true">🔎</span><span>Google</span>
+          </button>
+          <button class="quick" type="button" data-url="https://www.reddit.com/">
+            <span class="quick-ico" aria-hidden="true">🟠</span><span>Reddit</span>
+          </button>
+          <button class="quick" type="button" data-url="https://open.spotify.com/">
+            <span class="quick-ico" aria-hidden="true">🎵</span><span>Spotify</span>
+          </button>
+          <button class="quick" type="button" data-url="https://play.geforcenow.com/">
+            <span class="quick-ico" aria-hidden="true">🎮</span><span>GeForce NOW</span>
+          </button>
+          <button class="quick" type="button" data-url="https://chatgpt.com/">
+            <span class="quick-ico" aria-hidden="true">🤖</span><span>ChatGPT</span>
+          </button>
+          <button class="quick" type="button" data-url="https://www.instagram.com/">
+            <span class="quick-ico" aria-hidden="true">📸</span><span>Instagram</span>
+          </button>
+          <button class="quick" type="button" data-url="https://x.com/">
+            <span class="quick-ico" aria-hidden="true">𝕏</span><span>X / Twitter</span>
+          </button>
+          <button class="quick" type="button" data-url="https://now.gg/">
+            <span class="quick-ico" aria-hidden="true">☁️</span><span>now.gg</span>
+          </button>
+        </div>
+
+        <p class="home-hint">
+          Motor: <strong>Scramjet v2</strong> (WISP) com fallback <strong>Ultraviolet</strong>.
+          Ajuste WISP, transporte e cloak em <strong>⚙ Config</strong>.
+        </p>
+      </section>
+
+      <!-- Navegador embutido -->
+      <section id="browser" class="browser" hidden>
+        <iframe id="proxy-frame" title="Página proxied" allow="fullscreen; autoplay; clipboard-write" allowfullscreen></iframe>
+      </section>
+    </main>
+
+    <!-- Painel de configurações -->
+    <aside id="settings" class="settings" hidden aria-label="Configurações">
+      <div class="settings-head">
+        <h2>Configurações</h2>
+        <button id="btn-settings-close" class="icon-btn" type="button" aria-label="Fechar">✕</button>
+      </div>
+
+      <label class="field">
+        <span>Motor</span>
+        <select id="set-engine">
+          <option value="scramjet">Scramjet v2 (principal)</option>
+          <option value="uv">Ultraviolet (fallback)</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Transporte (Scramjet)</span>
+        <select id="set-transport">
+          <option value="libcurl">libcurl (libcurl.js)</option>
+          <option value="epoxy">Epoxy (epoxy-tls)</option>
+        </select>
+        <small>Ambos falam WISP. libcurl costuma ser mais estável para vídeo.</small>
+      </label>
+
+      <label class="field">
+        <span>Servidor WISP</span>
+        <input id="set-wisp" type="text" spellcheck="false" placeholder="wss://…" />
+        <small>Ex.: wss://wisp.mercurywork.shop/ ou wss://anura.pro/</small>
+      </label>
+
+      <label class="field">
+        <span>Presets WISP</span>
+        <select id="set-wisp-preset">
+          <option value="">— escolher preset —</option>
+          <option value="wss://wisp.mercurywork.shop/">MercuryWorkshop (oficial)</option>
+          <option value="wss://anura.pro/">Anura</option>
+          <option value="__custom">Personalizado (digite acima)</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Motor de busca</span>
+        <select id="set-search">
+          <option value="https://www.google.com/search?q=%s">Google</option>
+          <option value="https://www.bing.com/search?q=%s">Bing</option>
+          <option value="https://duckduckgo.com/?q=%s">DuckDuckGo</option>
+          <option value="https://search.brave.com/search?q=%s">Brave</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Cloak da aba (tab cloak)</span>
+        <select id="set-cloak">
+          <option value="none">Nenhum (Hugs)</option>
+          <option value="google">Google</option>
+          <option value="classroom">Google Classroom</option>
+          <option value="docs">Google Docs</option>
+          <option value="drive">Google Drive</option>
+          <option value="bing">Bing</option>
+        </select>
+        <small>Troca título + ícone da aba para se disfarçar.</small>
+      </label>
+
+      <div class="settings-actions">
+        <button id="btn-apply-settings" class="btn primary" type="button">Aplicar</button>
+        <button id="btn-reset-settings" class="btn" type="button">Restaurar padrão</button>
+      </div>
+
+      <p class="settings-note">
+        As alterações ficam salvas no navegador (localStorage) e valem para
+        as próximas navegações. Para mudar o padrão de todos, edite
+        <code>config.js</code>.
+      </p>
+    </aside>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
